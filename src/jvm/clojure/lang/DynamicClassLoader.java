@@ -42,9 +42,9 @@ public DynamicClassLoader(ClassLoader parent){
 
 public Class defineClass(String name, byte[] bytes, Object srcForm){
 	Util.clearCache(rq, classCache);
-	Class c = defineClass(name, bytes, 0, bytes.length);
-    classCache.put(name, new SoftReference(c,rq));
-    return c;
+	Class c = defineClass(name, bytes, 0, bytes.length, Compiler.class.getProtectionDomain());
+	classCache.put(name, new SoftReference(c,rq));
+	return c;
 }
 
 protected Class<?> findClass(String name) throws ClassNotFoundException{
