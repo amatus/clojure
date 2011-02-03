@@ -104,7 +104,7 @@
   (validate-generate-class-options options-map)
   (let [default-options {:prefix "-" :load-impl-ns true :impl-ns (ns-name *ns*)}
         {:keys [name extends implements constructors methods main factory state init exposes 
-                exposes-methods prefix load-impl-ns impl-ns post-init]} 
+                exposes-methods prefix load-impl-ns impl-ns post-init set-context-classloader]} 
           (merge default-options options-map)
         name-meta (meta name)
         name (str name)
@@ -135,6 +135,7 @@
         main-name "main"
         var-name (fn [s] (clojure.lang.Compiler/munge (str s "__var")))
         class-type  (totype Class)
+        thread-type (totype Thread)
         rt-type  (totype clojure.lang.RT)
         var-type ^Type (totype clojure.lang.Var)
         ifn-type (totype clojure.lang.IFn)
@@ -259,6 +260,11 @@
                    (. Method getMethod "void <clinit> ()")
                    nil nil cv)]
       (. gen (visitCode))
+      (when set-context-classloader
+        (. gen (invokeStatic thread-type (. Method (getMethod "java.lang.Thread currentThread()"))))
+        (. gen push ctype)
+        (. gen (invokeVirtual class-type (. Method (getMethod "ClassLoader getClassLoader()"))))
+        (. gen (invokeVirtual thread-type (. Method (getMethod "void setContextClassLoader(ClassLoader)")))))
       (doseq [v var-fields]
         (. gen push impl-pkg-name)
         (. gen push (str prefix v))
