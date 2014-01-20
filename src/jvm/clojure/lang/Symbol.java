@@ -16,17 +16,22 @@ import java.io.Serializable;
 import java.io.ObjectStreamException;
 
 
-public class Symbol extends AFn implements IObj, Comparable, Named, Serializable{
+public class Symbol extends AFn implements IObj, Comparable, Named, Serializable, IHashEq{
 //these must be interned strings!
 final String ns;
 final String name;
 final int hash;
 final IPersistentMap _meta;
+String _str;
 
 public String toString(){
-	if(ns != null)
-		return ns + "/" + name;
-	return name;
+	if(_str == null){
+		if(ns != null)
+			_str = (ns + "/" + name).intern();
+		else
+			_str = name;
+	}
+	return _str;
 }
 
 public String getNamespace(){
@@ -52,7 +57,7 @@ static public Symbol intern(String ns, String name){
 }
 
 static public Symbol intern(String nsname){
-	int i = nsname.lastIndexOf('/');
+	int i = nsname.indexOf('/');
 	if(i == -1 || nsname.equals("/"))
 		return new Symbol(null, nsname.intern());
 	else
@@ -79,6 +84,10 @@ public boolean equals(Object o){
 }
 
 public int hashCode(){
+	return hash;
+}
+
+public int hasheq() {
 	return hash;
 }
 

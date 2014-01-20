@@ -87,12 +87,19 @@
   (print-args o w)
   (.write w ")"))
 
-(defmethod print-method Object [o, ^Writer w]
+(defn- print-object [o, ^Writer w]
+  (when (instance? clojure.lang.IMeta o)
+    (print-meta o w))
   (.write w "#<")
-  (.write w (.getSimpleName (class o)))
-  (.write w " ")
+  (let [name (.getSimpleName (class o))]
+    (when (seq name) ;; anonymous classes have a simple name of ""
+      (.write w name)
+      (.write w " ")))
   (.write w (str o))
   (.write w ">"))
+
+(defmethod print-method Object [o, ^Writer w]
+  (print-object o w))
 
 (defmethod print-method clojure.lang.Keyword [o, ^Writer w]
   (.write w (str o)))
@@ -214,6 +221,42 @@
   (print-map m print-dup w)
   (.write w ")"))
 
+;; java.util
+(prefer-method print-method clojure.lang.IPersistentCollection java.util.Collection)
+(prefer-method print-method clojure.lang.IPersistentCollection java.util.RandomAccess)
+(prefer-method print-method java.util.RandomAccess java.util.List)
+(prefer-method print-method clojure.lang.IPersistentCollection java.util.Map)
+
+(defmethod print-method java.util.List [c, ^Writer w]
+  (if *print-readably*
+    (do
+      (print-meta c w)
+      (print-sequential "(" pr-on " " ")" c w))
+    (print-object c w)))
+
+(defmethod print-method java.util.RandomAccess [v, ^Writer w]
+  (if *print-readably*
+    (do
+      (print-meta v w)
+      (print-sequential "[" pr-on " " "]" v w))
+    (print-object v w)))
+
+(defmethod print-method java.util.Map [m, ^Writer w]
+  (if *print-readably*
+    (do
+      (print-meta m w)
+      (print-map m pr-on w))
+    (print-object m w)))
+
+(defmethod print-method java.util.Set [s, ^Writer w]
+  (if *print-readably*
+    (do
+      (print-meta s w)
+      (print-sequential "#{" pr-on " " "}" (seq s) w))
+    (print-object s w)))
+
+;; Records
+
 (defmethod print-method clojure.lang.IRecord [r, ^Writer w]
   (print-meta r w)
   (.write w "#")
@@ -239,7 +282,7 @@
   (print-meta s w)
   (print-sequential "#{" pr-on " " "}" (seq s) w))
 
-(def ^{:tag String 
+(def ^{:tag String
        :doc "Returns name string for char or nil if none"
        :added "1.0"} 
  char-name-string
@@ -259,12 +302,11 @@
   nil)
 
 (defmethod print-dup java.lang.Character [c w] (print-method c w))
-(defmethod print-dup java.lang.Integer [o w] (print-method o w))
+(defmethod print-dup java.lang.Long [o w] (print-method o w))
 (defmethod print-dup java.lang.Double [o w] (print-method o w))
 (defmethod print-dup clojure.lang.Ratio [o w] (print-method o w))
 (defmethod print-dup java.math.BigDecimal [o w] (print-method o w))
 (defmethod print-dup clojure.lang.BigInt [o w] (print-method o w))
-(defmethod print-dup java.math.BigInteger [o w] (print-method o w))
 (defmethod print-dup clojure.lang.PersistentHashMap [o w] (print-method o w))
 (defmethod print-dup clojure.lang.PersistentHashSet [o w] (print-method o w))
 (defmethod print-dup clojure.lang.PersistentVector [o w] (print-method o w))
@@ -305,10 +347,6 @@
   (.write w (str b))
   (.write w "N"))
 
-(defmethod print-method java.math.BigInteger [b, ^Writer w]
-  (.write w (str b))
-  (.write w "BIGINT"))
-
 (defmethod print-method java.util.regex.Pattern [p ^Writer w]
   (.write w "#\"")
   (loop [[^Character c & r :as s] (seq (.pattern ^java.util.regex.Pattern p))
@@ -346,7 +384,8 @@
                                      (agent-error o))
                               " FAILED"
                               ""))
-                    pr-on, "", ">", (list (if (and (instance? clojure.lang.IPending o) (not (.isRealized o)))
+                    pr-on, "", ">", (list (if (and (instance? clojure.lang.IPending o)
+                                                   (not (.isRealized ^clojure.lang.IPending o)))
                                             :pending
                                             @o)), w))
 

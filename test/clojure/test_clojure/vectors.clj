@@ -79,6 +79,11 @@
            vs-32 vs
            vs nil))))
 
+(deftest test-primitive-subvector-reduce
+  ;; regression test for CLJ-1082
+  (is (== 60 (let [prim-vec (into (vector-of :long) (range 1000))]
+               (reduce + (subvec prim-vec 10 15))))))
+
 (deftest test-vec-compare
   (let [nums      (range 1 100)
         ; randomly replaces a single item with the given value
@@ -352,3 +357,29 @@
            (vector-of :int (sorted-set 1 2 3 4))
            (vector-of :int 1 2 "3")
            (vector-of :int "1" "2" "3")))))
+
+(defn =vec
+  [expected v] (and (vector? v) (= expected v)))
+
+(deftest test-mapv
+  (are [r c1] (=vec r (mapv + c1))
+       [1 2 3] [1 2 3])
+  (are [r c1 c2] (=vec r (mapv + c1 c2))
+       [2 3 4] [1 2 3] (repeat 1))
+  (are [r c1 c2 c3] (=vec r (mapv + c1 c2 c3))
+       [3 4 5] [1 2 3] (repeat 1) (repeat 1))
+  (are [r c1 c2 c3 c4] (=vec r (mapv + c1 c2 c3 c4))
+       [4 5 6] [1 2 3] [1 1 1] [1 1 1] [1 1 1]))
+
+(deftest test-filterv
+  (are [r c1] (=vec r (filterv even? c1))
+       [] [1 3 5]
+       [2 4] [1 2 3 4 5]))
+
+(deftest test-subvec
+  (let [v1 (vec (range 100))
+        v2 (subvec v1 50 57)]
+    (is (thrown? IndexOutOfBoundsException (v2 -1)))
+    (is (thrown? IndexOutOfBoundsException (v2 7)))
+    (is (= (v1 50) (v2 0)))
+    (is (= (v1 56) (v2 6)))))

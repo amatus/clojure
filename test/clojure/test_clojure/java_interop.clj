@@ -40,6 +40,16 @@
       (. Math abs -7)
       (. Math (abs -7)) )
 
+  ; (. target -prop)
+  (let [p (java.awt.Point. 1 2)]
+    (are [x y] (= x y)
+       1 (.-x p)
+       2 (.-y p)
+       1 (. p -x)
+       2 (. p -y)
+       1 (. (java.awt.Point. 1 2) -x)
+       2 (. (java.awt.Point. 1 2) -y)))
+  
   ; Classname/staticField
   (are [x] (= x 2147483647)
       Integer/MAX_VALUE
@@ -92,8 +102,11 @@
       java.lang.Integer false
       java.lang.Long true
       java.lang.Character false
-      java.lang.String false ))
+      java.lang.String false )
 
+  ; test compiler macro
+  (is (let [Long String] (instance? Long "abc")))
+  (is (thrown? clojure.lang.ArityException (instance? Long))))
 
 ; set!
 
@@ -112,6 +125,11 @@
 
         (:alpha b) 255
         (:transparency b) 1
+
+        (:missing b) nil
+        (:missing b :default) :default
+        (get b :missing) nil
+        (get b :missing :default) :default
 
         (:class b) java.awt.Color )))
 
@@ -138,6 +156,12 @@
   (are [x y] (= x y)
       (bases java.lang.Math)
         (list java.lang.Object)
+      (bases java.util.Collection)
+        (list java.lang.Iterable)
+      (bases java.lang.Object)
+        nil
+      (bases java.lang.Comparable)
+        nil
       (bases java.lang.Integer)
         (list java.lang.Number java.lang.Comparable) ))
 
@@ -263,6 +287,29 @@
       (to-array [])
       (to-array [1 2 3]) ))
 
+(defn queue [& contents]
+  (apply conj (clojure.lang.PersistentQueue/EMPTY) contents))
+
+(defn array-typed-equals [expected actual]
+  (and (= (class expected) (class actual))
+       (java.util.Arrays/equals expected actual)))
+
+(defmacro test-to-passed-array-for [collection-type]
+  `(deftest ~(symbol (str "test-to-passed-array-for-" collection-type))
+     (let [string-array# (make-array String 5)
+           shorter# (~collection-type "1" "2" "3")
+           same-length# (~collection-type "1" "2" "3" "4" "5")
+           longer# (~collection-type "1" "2" "3" "4" "5" "6")]
+       (are [expected actual] (array-typed-equals expected actual)
+            (into-array String ["1" "2" "3" nil nil]) (.toArray shorter# string-array#)
+            (into-array String ["1" "2" "3" "4" "5"]) (.toArray same-length# string-array#)
+            (into-array String ["1" "2" "3" "4" "5" "6"]) (.toArray longer# string-array#)))))
+
+
+(test-to-passed-array-for vector)
+(test-to-passed-array-for list)
+(test-to-passed-array-for hash-set)
+(test-to-passed-array-for queue)
 
 (deftest test-into-array
   ; compatible types only
@@ -404,8 +451,12 @@
       (double-array [1 2 3])
       (boolean-array [true false])
       (byte-array [(byte 1) (byte 2)])
+      (byte-array [1 2])
+      (byte-array 2 [1 2])
       (char-array [\a \b \c])
       (short-array [(short 1) (short 2)])
+      (short-array [1 2])
+      (short-array 2 [1 2])
       (make-array Integer/TYPE 3)
       (to-array [1 "a" :k])
       (into-array [1 2 3]) )

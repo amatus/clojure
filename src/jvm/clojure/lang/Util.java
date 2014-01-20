@@ -14,6 +14,7 @@ package clojure.lang;
 
 import java.lang.ref.Reference;
 import java.math.BigInteger;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.lang.ref.SoftReference;
@@ -32,6 +33,50 @@ static public boolean equiv(Object k1, Object k2){
 		return k1.equals(k2);
 		}
 	return false;
+}
+
+public interface EquivPred{
+    boolean equiv(Object k1, Object k2);
+}
+
+static EquivPred equivNull = new EquivPred() {
+        public boolean equiv(Object k1, Object k2) {
+            return k2 == null;
+        }
+    };
+
+static EquivPred equivEquals = new EquivPred(){
+        public boolean equiv(Object k1, Object k2) {
+            return k1.equals(k2);
+        }
+    };
+
+static EquivPred equivNumber = new EquivPred(){
+        public boolean equiv(Object k1, Object k2) {
+            if(k2 instanceof Number)
+                return Numbers.equal((Number) k1, (Number) k2);
+            return false;
+        }
+    };
+
+static EquivPred equivColl = new EquivPred(){
+        public boolean equiv(Object k1, Object k2) {
+            if(k1 instanceof IPersistentCollection || k2 instanceof IPersistentCollection)
+                return pcequiv(k1, k2);
+            return k1.equals(k2);
+        }
+    };
+
+static public EquivPred equivPred(Object k1){
+    if(k1 == null)
+        return equivNull;
+    else if (k1 instanceof Number)
+        return equivNumber;
+    else if (k1 instanceof String || k1 instanceof Symbol)
+        return equivEquals;
+    else if (k1 instanceof Collection || k1 instanceof Map)
+        return equivColl;
+    return equivEquals;
 }
 
 static public boolean equiv(long k1, long k2){
@@ -56,6 +101,22 @@ static public boolean equiv(Object k1, double k2){
 
 static public boolean equiv(double k1, Object k2){
 	return equiv((Object)k1, k2);
+}
+
+static public boolean equiv(boolean k1, boolean k2){
+	return k1 == k2;
+}
+
+static public boolean equiv(Object k1, boolean k2){
+	return equiv(k1, (Object)k2);
+}
+
+static public boolean equiv(boolean k1, Object k2){
+	return equiv((Object)k1, k2);
+}
+
+static public boolean equiv(char c1, char c2) {
+    return c1 == c2;
 }
 
 static public boolean pcequiv(Object k1, Object k2){
@@ -98,6 +159,20 @@ static public int hash(Object o){
 	if(o == null)
 		return 0;
 	return o.hashCode();
+}
+
+public static int hasheq(Object o){
+	if(o == null)
+		return 0;
+	if(o instanceof IHashEq)
+		return dohasheq((IHashEq) o);	
+	if(o instanceof Number)
+		return Numbers.hasheq((Number)o);
+	return o.hashCode();
+}
+
+private static int dohasheq(IHashEq o) {
+	return o.hasheq();
 }
 
 static public int hashCombine(int seed, int hash){
@@ -143,14 +218,29 @@ static public <K,V> void clearCache(ReferenceQueue rq, ConcurrentHashMap<K, Refe
 static public RuntimeException runtimeException(String s){
 	return new RuntimeException(s);
 }
+
 static public RuntimeException runtimeException(String s, Throwable e){
 	return new RuntimeException(s, e);
 }
 
-static public RuntimeException runtimeException(Throwable e){
-	if(e instanceof RuntimeException)
-		return (RuntimeException)e;
-	return new RuntimeException(e);
+/**
+ * Throw even checked exceptions without being required
+ * to declare them or catch them. Suggested idiom:
+ * <p>
+ * <code>throw sneakyThrow( some exception );</code>
+ */
+static public RuntimeException sneakyThrow(Throwable t) {
+    // http://www.mail-archive.com/javaposse@googlegroups.com/msg05984.html
+	if (t == null)
+		throw new NullPointerException();
+	Util.<RuntimeException>sneakyThrow0(t);
+	return null;
+}
+
+@SuppressWarnings("unchecked")
+static private <T extends Throwable> void sneakyThrow0(Throwable t) throws T {
+	throw (T) t;
 }
 
 }
+

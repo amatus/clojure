@@ -14,7 +14,7 @@ package clojure.lang;
 
 import java.util.*;
 
-public final class LazySeq extends Obj implements ISeq, Sequential, List, IPending{
+public final class LazySeq extends Obj implements ISeq, Sequential, List, IPending, IHashEq{
 
 private IFn fn;
 private Object sv;
@@ -37,19 +37,8 @@ public Obj withMeta(IPersistentMap meta){
 final synchronized Object sval(){
 	if(fn != null)
 		{
-		try
-			{
-			sv = fn.invoke();
-			fn = null;
-			}
-		catch(RuntimeException e)
-			{
-			throw e;
-			}
-		catch(Exception e)
-			{
-			throw Util.runtimeException(e);
-			}
+                sv = fn.invoke();
+                fn = null;
 		}
 	if(sv != null)
 		return sv;
@@ -118,6 +107,13 @@ public int hashCode(){
 	return Util.hash(seq());
 }
 
+public int hasheq(){
+	ISeq s = seq();
+	if(s == null)
+		return 1;
+	return Util.hasheq(seq());
+}
+
 public boolean equals(Object o){
 	ISeq s = seq();
 	if(s != null)
@@ -167,19 +163,7 @@ public boolean containsAll(Collection c){
 }
 
 public Object[] toArray(Object[] a){
-	if(a.length >= count())
-		{
-		ISeq s = seq();
-		for(int i = 0; s != null; ++i, s = s.next())
-			{
-			a[i] = s.first();
-			}
-		if(a.length > count())
-			a[count()] = null;
-		return a;
-		}
-	else
-		return toArray();
+    return RT.seqToPassedArray(seq(), a);
 }
 
 public int size(){

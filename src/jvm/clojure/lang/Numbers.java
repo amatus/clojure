@@ -389,6 +389,23 @@ static public long shiftRight(long x, long n){
 	return x >> n;
 }
 
+static public int unsignedShiftRightInt(int x, int n){
+	return x >>> n;
+}
+
+static public long unsignedShiftRight(Object x, Object y){
+    return unsignedShiftRight(bitOpsCast(x),bitOpsCast(y));
+}
+static public long unsignedShiftRight(Object x, long y){
+    return unsignedShiftRight(bitOpsCast(x),y);
+}
+static public long unsignedShiftRight(long x, Object y){
+    return unsignedShiftRight(x,bitOpsCast(y));
+}
+static public long unsignedShiftRight(long x, long n){
+	return x >>> n;
+}
+
 final static class LongOps implements Ops{
 	public Ops combine(Ops y){
 		return y.opsWith(this);
@@ -444,6 +461,8 @@ final static class LongOps implements Ops{
 
 	final public Number multiplyP(Number x, Number y){
 		long lx = x.longValue(), ly = y.longValue();
+    if (lx == Long.MIN_VALUE && ly < 0)
+      return BIGINT_OPS.multiply(x, y);
 		long ret = lx * ly;
 		if (ly != 0 && ret/ly != lx)
 			return BIGINT_OPS.multiply(x, y);
@@ -776,11 +795,11 @@ final static class BigIntOps extends OpsP{
 	}
 
 	final public Number add(Number x, Number y){
-		return BigInt.fromBigInteger(toBigInteger(x).add(toBigInteger(y)));
+        return toBigInt(x).add(toBigInt(y));
 	}
 
 	final public Number multiply(Number x, Number y){
-		return BigInt.fromBigInteger(toBigInteger(x).multiply(toBigInteger(y)));
+        return toBigInt(x).multiply(toBigInt(y));
 	}
 
 	public Number divide(Number x, Number y){
@@ -788,11 +807,11 @@ final static class BigIntOps extends OpsP{
 	}
 
 	public Number quotient(Number x, Number y){
-		return BigInt.fromBigInteger(toBigInteger(x).divide(toBigInteger(y)));
+        return toBigInt(x).quotient(toBigInt(y));
 	}
 
 	public Number remainder(Number x, Number y){
-		return BigInt.fromBigInteger(toBigInteger(x).remainder(toBigInteger(y)));
+        return toBigInt(x).remainder(toBigInt(y));
 	}
 
 	public boolean equiv(Number x, Number y){
@@ -800,7 +819,7 @@ final static class BigIntOps extends OpsP{
 	}
 
 	public boolean lt(Number x, Number y){
-		return toBigInteger(x).compareTo(toBigInteger(y)) < 0;
+        return toBigInt(x).lt(toBigInt(y));
 	}
 
 	//public Number subtract(Number x, Number y);
@@ -898,7 +917,7 @@ final static class BigDecimalOps extends OpsP{
 	}
 
 	public boolean equiv(Number x, Number y){
-		return toBigDecimal(x).equals(toBigDecimal(y));
+		return toBigDecimal(x).compareTo(toBigDecimal(y)) == 0;
 	}
 
 	public boolean lt(Number x, Number y){
@@ -941,11 +960,11 @@ static public enum Category {INTEGER, FLOATING, DECIMAL, RATIO};
 static Ops ops(Object x){
 	Class xc = x.getClass();
 
-	if(xc == Integer.class)
+	if(xc == Long.class)
 		return LONG_OPS;
 	else if(xc == Double.class)
 		return DOUBLE_OPS;
-	else if(xc == Long.class)
+	else if(xc == Integer.class)
 		return LONG_OPS;
 	else if(xc == Float.class)
 		return DOUBLE_OPS;
@@ -959,6 +978,35 @@ static Ops ops(Object x){
 		return BIGDECIMAL_OPS;
 	else
 		return LONG_OPS;
+}
+
+static int hasheq(Number x){
+	Class xc = x.getClass();
+
+	if(xc == Long.class
+		|| xc == Integer.class
+		|| xc == Short.class
+		|| xc == Byte.class)
+		{
+		long lpart = x.longValue();
+		return (int) (lpart ^ (lpart >>> 32));
+		}
+	if(xc == BigDecimal.class)
+		{
+		// stripTrailingZeros() to make all numerically equal
+		// BigDecimal values come out the same before calling
+		// hashCode.  Special check for 0 because
+		// stripTrailingZeros() does not do anything to values
+		// equal to 0 with different scales.
+		if (isZero(x))
+			return BigDecimal.ZERO.hashCode();
+		else
+			{
+			BigDecimal tmp = ((BigDecimal) x).stripTrailingZeros();
+			return tmp.hashCode();
+			}
+		}
+	return x.hashCode();
 }
 
 static Category category(Object x){
@@ -1130,7 +1178,7 @@ static public short[] short_array(int size, Object init){
 		{
 		ISeq s = RT.seq(init);
 		for(int i = 0; i < size && s != null; i++, s = s.next())
-			ret[i] = (Short) s.first();
+			ret[i] = ((Number) s.first()).shortValue();
 		}
 	return ret;
 }
@@ -1144,7 +1192,7 @@ static public short[] short_array(Object sizeOrSeq){
 		int size = RT.count(s);
 		short[] ret = new short[size];
 		for(int i = 0; i < size && s != null; i++, s = s.next())
-			ret[i] = (Short) s.first();
+			ret[i] = ((Number) s.first()).shortValue();
 		return ret;
 		}
 }
@@ -1192,7 +1240,7 @@ static public byte[] byte_array(int size, Object init){
 		{
 		ISeq s = RT.seq(init);
 		for(int i = 0; i < size && s != null; i++, s = s.next())
-			ret[i] = (Byte) s.first();
+			ret[i] = ((Number) s.first()).byteValue();
 		}
 	return ret;
 }
@@ -1206,7 +1254,7 @@ static public byte[] byte_array(Object sizeOrSeq){
 		int size = RT.count(s);
 		byte[] ret = new byte[size];
 		for(int i = 0; i < size && s != null; i++, s = s.next())
-			ret[i] = (Byte)s.first();
+			ret[i] = ((Number) s.first()).byteValue();
 		return ret;
 		}
 }
@@ -1493,7 +1541,7 @@ static public long clearBit(long x, Object y){
     return clearBit(x,bitOpsCast(y));
 }
 static public long clearBit(long x, long n){
-    return x & (1L << n);
+    return x & ~(1L << n);
 }
 
 static public long setBit(Object x, Object y){
@@ -1733,6 +1781,8 @@ static public Number decP(long x){
 
 
 static public long multiply(long x, long y){
+  if (x == Long.MIN_VALUE && y < 0)
+		return throwIntOverflow();
 	long ret = x * y;
 	if (y != 0 && ret/y != x)
 		return throwIntOverflow();
@@ -1740,6 +1790,8 @@ static public long multiply(long x, long y){
 }
 
 static public Number multiplyP(long x, long y){
+  if (x == Long.MIN_VALUE && y < 0)
+		return multiplyP((Number)x,(Number)y);
 	long ret = x * y;
 	if (y != 0 && ret/y != x)
 		return multiplyP((Number)x,(Number)y);
@@ -3797,15 +3849,20 @@ static public boolean equiv(long x, double y){
 	return x == y;
 }
 
+
+static boolean isNaN(Object x){
+	return (x instanceof Double) && ((Double)x).isNaN()
+		|| (x instanceof Float) && ((Float)x).isNaN();
+}
+
 static public double max(double x, double y){
-	if(x > y){
-		return x;
-	} else {
-		return y;
-	}
+	return Math.max(x, y);
 }
 
 static public Object max(double x, long y){
+	if(Double.isNaN(x)){
+		return x;
+	}
 	if(x > y){
 		return x;
 	} else {
@@ -3814,6 +3871,11 @@ static public Object max(double x, long y){
 }
 
 static public Object max(double x, Object y){
+	if(Double.isNaN(x)){
+		return x;
+	} else if(isNaN(y)){
+		return y;
+	}
 	if(x > ((Number)y).doubleValue()){
 		return x;
 	} else {
@@ -3822,6 +3884,9 @@ static public Object max(double x, Object y){
 }
 
 static public Object max(long x, double y){
+	if(Double.isNaN(y)){
+		return y;
+	}
 	if(x > y){
 		return x;
 	} else {
@@ -3838,7 +3903,11 @@ static public long max(long x, long y){
 	}
 }
 
+
 static public Object max(long x, Object y){
+	if(isNaN(y)){
+		return y;
+	}
 	if(gt(x,y)){
 		return x;
 	} else {
@@ -3847,6 +3916,9 @@ static public Object max(long x, Object y){
 }
 
 static public Object max(Object x, long y){
+	if(isNaN(x)){
+		return x;
+	}
 	if(gt(x,y)){
 		return x;
 	} else {
@@ -3855,6 +3927,11 @@ static public Object max(Object x, long y){
 }
 
 static public Object max(Object x, double y){
+	if (isNaN(x)){
+		return x;
+	} else if(Double.isNaN(y)){
+		return y;
+	}
 	if(((Number)x).doubleValue() > y){
 		return x;
 	} else {
@@ -3863,6 +3940,11 @@ static public Object max(Object x, double y){
 }
 
 static public Object max(Object x, Object y){
+	if(isNaN(x)){
+		return x;
+	} else if(isNaN(y)){
+		return y;
+	}
 	if(gt(x, y)) {
 		return x;
 	} else {
@@ -3872,14 +3954,13 @@ static public Object max(Object x, Object y){
 
 
 static public double min(double x, double y){
-	if(x < y){
-		return x;
-	} else {
-		return y;
-	}
+	return Math.min(x, y);
 }
 
 static public Object min(double x, long y){
+	if (Double.isNaN(x)){
+		return x;
+	}
 	if(x < y){
 		return x;
 	} else {
@@ -3888,6 +3969,11 @@ static public Object min(double x, long y){
 }
 
 static public Object min(double x, Object y){
+	if(Double.isNaN(x)){
+		return x;
+	} else if(isNaN(y)){
+		return y;
+	}
 	if(x < ((Number)y).doubleValue()){
 		return x;
 	} else {
@@ -3896,6 +3982,9 @@ static public Object min(double x, Object y){
 }
 
 static public Object min(long x, double y){
+	if(Double.isNaN(y)){
+		return y;
+	}
 	if(x < y){
 		return x;
 	} else {
@@ -3913,6 +4002,9 @@ static public long min(long x, long y){
 }
 
 static public Object min(long x, Object y){
+	if(isNaN(y)){
+		return y;
+	}
 	if(lt(x,y)){
 		return x;
 	} else {
@@ -3921,6 +4013,9 @@ static public Object min(long x, Object y){
 }
 
 static public Object min(Object x, long y){
+	if(isNaN(x)){
+		return x;
+	}
 	if(lt(x,y)){
 		return x;
 	} else {
@@ -3929,6 +4024,11 @@ static public Object min(Object x, long y){
 }
 
 static public Object min(Object x, double y){
+	if(isNaN(x)){
+		return x;
+	} else if(Double.isNaN(y)){
+		return y;
+	}
 	if(((Number)x).doubleValue() < y){
 		return x;
 	} else {
@@ -3937,6 +4037,11 @@ static public Object min(Object x, double y){
 }
 
 static public Object min(Object x, Object y){
+	if (isNaN(x)){
+		return x;
+	} else if(isNaN(y)){
+		return y;
+	}
 	if(lt(x,y)) {
 		return x;
 	} else {

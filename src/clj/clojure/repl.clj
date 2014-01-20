@@ -9,8 +9,8 @@
 ; Utilities meant to be used interactively at the REPL
 
 (ns
-  #^{:author "Chris Houser, Christophe Grand, Stephen Gilardi, Michel Salim"
-     :doc "Utilities meant to be used interactively at the REPL"}
+  ^{:author "Chris Houser, Christophe Grand, Stephen Gilardi, Michel Salim"
+    :doc "Utilities meant to be used interactively at the REPL"}
   clojure.repl
   (:import (java.io LineNumberReader InputStreamReader PushbackReader)
            (clojure.lang RT Reflector)))
@@ -125,8 +125,8 @@ itself (not its value) is returned. The reader macro #'x expands to (var x)."}})
     (#'print-doc (#'special-doc special-name))
     (cond
       (special-doc-map name) `(#'print-doc (#'special-doc '~name))
-      (resolve name) `(#'print-doc (meta (var ~name)))
-      (find-ns name) `(#'print-doc (namespace-doc (find-ns '~name))))))
+      (find-ns name) `(#'print-doc (#'namespace-doc (find-ns '~name)))
+      (resolve name) `(#'print-doc (meta (var ~name))))))
 
 ;; ----------------------------------------------------------------------
 ;; Examine Clojure functions (Vars, really)
@@ -186,33 +186,12 @@ str-or-pattern."
   `(doseq [v# (dir-fn '~nsname)]
      (println v#)))
 
-(def ^:private demunge-map
-  (into {"$" "/"} (map (fn [[k v]] [v k]) clojure.lang.Compiler/CHAR_MAP)))
-
-(def ^:private demunge-pattern
-  (re-pattern (apply str (interpose "|" (map #(str "\\Q" % "\\E")
-                                             (keys demunge-map))))))
-
-(defn- re-replace [re s f]
-  (let [m (re-matcher re s)
-        mseq (take-while identity
-                         (repeatedly #(when (re-find m)
-                                        [(re-groups m) (.start m) (.end m)])))]
-    (apply str
-           (concat
-             (mapcat (fn [[_ _ start] [groups end]]
-                       (if end
-                         [(subs s start end) (f groups)]
-                         [(subs s start)]))
-                     (cons [0 0 0] mseq)
-                     (concat mseq [nil]))))))
-
 (defn demunge
   "Given a string representation of a fn class,
   as in a stack trace element, returns a readable version."
   {:added "1.3"}
   [fn-name]
-  (re-replace demunge-pattern fn-name demunge-map))
+  (clojure.lang.Compiler/demunge fn-name))
 
 (defn root-cause
   "Returns the initial cause of an exception or error by peeling off all of
@@ -251,7 +230,9 @@ str-or-pattern."
          (pst (root-cause e) e-or-depth))))
   ([^Throwable e depth]
      (binding [*out* *err*]
-       (println (str (-> e class .getSimpleName) " " (.getMessage e)))
+       (println (str (-> e class .getSimpleName) " "
+                     (.getMessage e)
+                     (when-let [info (ex-data e)] (str " " (pr-str info)))))
        (let [st (.getStackTrace e)
              cause (.getCause e)]
          (doseq [el (take depth

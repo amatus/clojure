@@ -13,6 +13,7 @@
 package clojure.lang;
 
 import java.math.BigInteger;
+import java.math.BigDecimal;
 
 public final class BigInt extends Number{
 
@@ -64,6 +65,13 @@ public BigInteger toBigInteger(){
 		return BigInteger.valueOf(lpart);
 	else
 		return bipart;
+}
+
+public BigDecimal toBigDecimal(){
+	if(bipart == null)
+		return BigDecimal.valueOf(lpart);
+	else
+		return new BigDecimal(bipart);
 }
 
 ///// java.lang.Number:
@@ -122,6 +130,46 @@ public String toString(){
 
 public int bitLength(){
 	return toBigInteger().bitLength();
+}
+
+public BigInt add(BigInt y) {
+    if ((bipart == null) && (y.bipart == null)) {
+        long ret = lpart + y.lpart;
+        if ((ret ^ lpart) >= 0 || (ret ^ y.lpart) >= 0)
+            return BigInt.valueOf(ret);
+    }
+    return BigInt.fromBigInteger(this.toBigInteger().add(y.toBigInteger()));
+}
+
+public BigInt multiply(BigInt y) {
+    if ((bipart == null) && (y.bipart == null)) {
+        long ret = lpart * y.lpart;
+            if (y.lpart == 0 ||
+                (ret / y.lpart == lpart && lpart != Long.MIN_VALUE))
+                return BigInt.valueOf(ret);
+        }
+    return BigInt.fromBigInteger(this.toBigInteger().multiply(y.toBigInteger()));
+}
+
+public BigInt quotient(BigInt y) {
+    if ((bipart == null) && (y.bipart == null)) {
+        return BigInt.valueOf(lpart / y.lpart);
+    }
+    return BigInt.fromBigInteger(this.toBigInteger().divide(y.toBigInteger()));
+}
+
+public BigInt remainder(BigInt y) {
+    if ((bipart == null) && (y.bipart == null)) {
+        return BigInt.valueOf(lpart % y.lpart);
+    }
+    return BigInt.fromBigInteger(this.toBigInteger().remainder(y.toBigInteger()));
+}
+
+public boolean lt(BigInt y) {
+    if ((bipart == null) && (y.bipart == null)) {
+        return lpart < y.lpart;
+    }
+    return this.toBigInteger().compareTo(y.toBigInteger()) < 0;
 }
 
 }

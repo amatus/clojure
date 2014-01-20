@@ -27,33 +27,12 @@
   [^StackTraceElement el]
   (.getClassName el))
 
-(def ^:private demunge-map
-  (into {"$" "/"} (map (fn [[k v]] [v k]) clojure.lang.Compiler/CHAR_MAP)))
-
-(def ^:private demunge-pattern
-  (re-pattern (apply str (interpose "|" (map #(str "\\Q" % "\\E")
-                                             (keys demunge-map))))))
-
-(defn- re-replace [re s f]
-  (let [m (re-matcher re s)
-        mseq (take-while identity
-                         (repeatedly #(when (re-find m)
-                                        [(re-groups m) (.start m) (.end m)])))]
-    (apply str
-           (concat
-             (mapcat (fn [[_ _ start] [groups end]]
-                       (if end
-                         [(subs s start end) (f groups)]
-                         [(subs s start)]))
-                     (cons [0 0 0] mseq)
-                     (concat mseq [nil]))))))
-
 (defn demunge
   "Given a string representation of a fn class,
   as in a stack trace element, returns a readable version."
   {:added "1.3"}
   [fn-name]
-  (re-replace demunge-pattern fn-name demunge-map))
+  (clojure.lang.Compiler/demunge fn-name))
 
 (defn root-cause
   "Returns the initial cause of an exception or error by peeling off all of
@@ -94,6 +73,8 @@
              *print-meta* *print-meta*
              *print-length* *print-length*
              *print-level* *print-level*
+             *data-readers* *data-readers*
+             *default-data-reader-fn* *default-data-reader-fn*
              *compile-path* (System/getProperty "clojure.compile.path" "classes")
              *command-line-args* *command-line-args*
              *unchecked-math* *unchecked-math*
@@ -176,6 +157,19 @@
                     (when-not (instance? clojure.lang.Compiler$CompilerException ex)
                       (str " " (if el (stack-element-str el) "[trace missing]"))))))))
 
+(def ^{:doc "A sequence of lib specs that are applied to `require`
+by default when a new command-line REPL is started."} repl-requires
+  '[[clojure.repl :refer (source apropos dir pst doc find-doc)]
+    [clojure.java.javadoc :refer (javadoc)]
+    [clojure.pprint :refer (pp pprint)]])
+
+(defmacro with-read-known
+  "Evaluates body with *read-eval* set to a \"known\" value,
+   i.e. substituting true for :unknown if necessary."
+  [& body]
+  `(binding [*read-eval* (if (= :unknown *read-eval*) true *read-eval*)]
+     ~@body))
+
 (defn repl
   "Generic, reusable, read-eval-print loop. By default, reads from *in*,
   writes to *out*, and prints exception summaries to *err*. If you use the
@@ -209,7 +203,7 @@
          - else returns the next object read from the input stream
        default: repl-read
 
-     - :eval, funtion of one argument, returns the evaluation of its
+     - :eval, function of one argument, returns the evaluation of its
        argument
        default: eval
 
@@ -239,9 +233,10 @@
         read-eval-print
         (fn []
           (try
-           (let [input (read request-prompt request-exit)]
+            (let [read-eval *read-eval*
+                  input (with-read-known (read request-prompt request-exit))]
              (or (#{request-prompt request-exit} input)
-                 (let [value (eval input)]
+                 (let [value (binding [*read-eval* read-eval] (eval input))]
                    (print value)
                    (set! *3 *2)
                    (set! *2 *1)
@@ -255,14 +250,11 @@
       (catch Throwable e
         (caught e)
         (set! *e e)))
-     (use '[clojure.repl :only (source apropos dir pst doc find-doc)])
-     (use '[clojure.java.javadoc :only (javadoc)])
-     (use '[clojure.pprint :only (pp pprint)])
      (prompt)
      (flush)
      (loop []
        (when-not 
-       	 (try (= (read-eval-print) request-exit)
+       	 (try (identical? (read-eval-print) request-exit)
 	  (catch Throwable e
 	   (caught e)
 	   (set! *e e)
@@ -291,12 +283,12 @@
   [str]
   (let [eof (Object.)
         reader (LineNumberingPushbackReader. (java.io.StringReader. str))]
-      (loop [input (read reader false eof)]
+      (loop [input (with-read-known (read reader false eof))]
         (when-not (= input eof)
           (let [value (eval input)]
             (when-not (nil? value)
               (prn value))
-            (recur (read reader false eof)))))))
+            (recur (with-read-known (read reader false eof))))))))
 
 (defn- init-dispatch
   "Returns the handler associated with an init opt"
@@ -328,7 +320,9 @@
   [[_ & args] inits]
   (when-not (some #(= eval-opt (init-dispatch (first %))) inits)
     (println "Clojure" (clojure-version)))
-  (repl :init #(initialize args inits))
+  (repl :init (fn []
+                (initialize args inits)
+                (apply require repl-requires)))
   (prn)
   (System/exit 0))
 

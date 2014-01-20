@@ -16,6 +16,9 @@
 
 (defn f1 [a] a)
 
+;; Function name that includes many special characters to test demunge
+(defn f2:+><->!#%&*|b [x] x)
+
 (defmacro m0 [] `(identity 0))
 
 (defmacro m1 [a] `(inc ~a))
@@ -29,4 +32,29 @@
   (is (thrown-with-msg? ArityException #"Wrong number of args \(1\) passed to"
         (macroexpand `(m0 1))))
   (is (thrown-with-msg? ArityException #"Wrong number of args \(2\) passed to"
-        (macroexpand `(m1 1 2)))))
+        (macroexpand `(m1 1 2))))
+  (is (thrown-with-msg? ArityException #"\Q/f2:+><->!#%&*|b\E"
+        (f2:+><->!#%&*|b 1 2))
+        "ArityException messages should demunge function names"))
+
+(deftest assert-arg-messages
+  ; used to ensure that error messages properly use local names for macros
+  (refer 'clojure.core :rename '{with-open renamed-with-open})
+  
+  ; would have used `are` here, but :line meta on &form doesn't survive successive macroexpansions
+  (doseq [[msg-regex-str form] [["if-let .* in %s:\\d+" '(if-let [a 5
+                                                                 b 6]
+                                                          true nil)]
+                                ["let .* in %s:\\d+" '(let [a])] 
+                                ["let .* in %s:\\d+" '(let (a))]
+                                ["renamed-with-open .* in %s:\\d+" '(renamed-with-open [a])]]]
+    (is (thrown-with-msg? IllegalArgumentException
+                          (re-pattern (format msg-regex-str *ns*))
+                          (macroexpand form)))))
+
+(deftest extract-ex-data
+  (try
+   (throw (ex-info "example error" {:foo 1}))
+   (catch Throwable t
+     (is (= {:foo 1} (ex-data t)))))
+  (is (nil? (ex-data (RuntimeException. "example non ex-data")))))

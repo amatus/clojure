@@ -10,7 +10,10 @@
 
 
 (ns clojure.test-clojure.data-structures
-  (:use clojure.test))
+  (:use clojure.test
+        [clojure.test.generative :exclude (is)])
+  (:require [clojure.test-clojure.generators :as cgen]
+            [clojure.data.generators :as gen]))
 
 
 ;; *** Helper functions ***
@@ -18,6 +21,58 @@
 (defn diff [s1 s2]
   (seq (reduce disj (set s1) (set s2))))
 
+
+;; *** Generative ***
+(defspec subcollection-counts-are-consistent
+  identity
+  [^{:tag cgen/ednable-collection} coll]
+  (let [n (count coll)]
+    (dotimes [i n]
+      (is (= n
+             (+ i (count (nthnext coll i)))
+             (+ i (count (drop i coll))))))))
+
+(defn- transient? [x]
+  (instance? clojure.lang.ITransientCollection x))
+
+(defn gen-transient-action []
+  (gen/rand-nth [[#(conj! %1 %2) #(conj %1 %2) (gen/uniform -100 100)]
+                 [#(disj! %1 %2) #(disj %1 %2) (gen/uniform -100 100)]
+                 [persistent! identity]
+                 [identity transient]]))
+
+(defn gen-transient-actions []
+  (gen/reps #(gen/uniform 0 100) gen-transient-action))
+
+(defn assert-same-collection [a b]
+  (assert (= (count a) (count b) (.size a) (.size b)))
+  (assert (= a b))
+  (assert (= b a))
+  (assert (.equals ^Object a b))
+  (assert (.equals ^Object b a))
+  (assert (= (hash a) (hash b)))
+  (assert (= (.hashCode ^Object a) (.hashCode ^Object b)))
+  (assert (= a
+             (into (empty a) a)
+             (into (empty b) b)
+             (into (empty a) b)
+             (into (empty b) a))))
+
+(defn apply-actions [coll actions]
+  (reduce (fn [c [tfunc pfunc & args]]
+            (apply (if (transient? c) tfunc pfunc) c args))
+          coll
+          actions))
+
+(defn to-persistent [c]
+  (if (transient? c) (persistent! c) c))
+
+(defspec conj-persistent-transient
+  identity
+  [^{:tag clojure.test-clojure.data-structures/gen-transient-actions} actions]
+  (assert-same-collection
+   (to-persistent (apply-actions #{} actions))
+   (to-persistent (apply-actions #{} actions))))
 
 ;; *** General ***
 
@@ -398,6 +453,33 @@
       (contains? #{1 2 3} 10) false
       (contains? #{1 2 3} nil) false)
 
+  ; contains? also works on java.util.Map and java.util.Set.
+  (are [x y] (= x y)
+      (contains? (java.util.HashMap. {}) :a) false
+      (contains? (java.util.HashMap. {}) nil) false
+
+      (contains? (java.util.HashMap. {:a 1}) :a) true
+      (contains? (java.util.HashMap. {:a 1}) :b) false
+      (contains? (java.util.HashMap. {:a 1}) nil) false
+
+      (contains? (java.util.HashMap. {:a 1 :b 2}) :a) true
+      (contains? (java.util.HashMap. {:a 1 :b 2}) :b) true
+      (contains? (java.util.HashMap. {:a 1 :b 2}) :c) false
+      (contains? (java.util.HashMap. {:a 1 :b 2}) nil) false
+
+      ; sets
+      (contains? (java.util.HashSet. #{}) 1) false
+      (contains? (java.util.HashSet. #{}) nil) false
+
+      (contains? (java.util.HashSet. #{1}) 1) true
+      (contains? (java.util.HashSet. #{1}) 2) false
+      (contains? (java.util.HashSet. #{1}) nil) false
+
+      (contains? (java.util.HashSet. #{1 2 3}) 1) true
+      (contains? (java.util.HashSet. #{1 2 3}) 3) true
+      (contains? (java.util.HashSet. #{1 2 3}) 10) false
+      (contains? (java.util.HashSet. #{1 2 3}) nil) false)
+
   ; numerically indexed collections (e.g. vectors and Java arrays)
   ; => test if the numeric key is WITHIN THE RANGE OF INDEXES
   (are [x y] (= x y)
@@ -428,15 +510,10 @@
       (contains? (into-array [1 2 3]) 3) false
       (contains? (into-array [1 2 3]) -1) false)
 
-  ; 'contains?' operates constant or logarithmic time,
-  ; it WILL NOT perform a linear search for a value.
-  (are [x]  (= x false)
-      (contains? '(1 2 3) 0)
-      (contains? '(1 2 3) 1)
-      (contains? '(1 2 3) 3)
-      (contains? '(1 2 3) 10)
-      (contains? '(1 2 3) nil)
-      (contains? '(1 2 3) ()) ))
+  ; 'contains?' will not operate on non-associative things
+  (are [x]  (is (thrown? Exception (contains? x 1)))
+       '(1 2 3)
+       3))
 
 
 (deftest test-keys
@@ -524,7 +601,7 @@
 
 (deftest test-get
   (let [m {:a 1, :b 2, :c {:d 3, :e 4}, :f nil, :g false, nil {:h 5}}]
-    (is (thrown? IllegalArgumentException (get-in {:a 1} 5)))
+    (is (thrown? Throwable (get-in {:a 1} 5)))
     (are [x y] (= x y)
          (get m :a) 1
          (get m :e) nil
@@ -551,6 +628,19 @@
          (get-in m [:x :y] {:y 1}) {:y 1}
          (get-in m [] 0) m
          (get-in m nil 0) m)))
+
+(deftest test-nested-map-destructuring
+  (let [sample-map {:a 1 :b {:a 2}}
+        {ao1 :a {ai1 :a} :b} sample-map
+        {ao2 :a {ai2 :a :as m1} :b :as m2} sample-map
+        {ao3 :a {ai3 :a :as m} :b :as m} sample-map
+        {{ai4 :a :as m} :b ao4 :a :as m} sample-map]
+    (are [i o] (and (= i 2)
+                    (= o 1))
+         ai1 ao1
+         ai2 ao2
+         ai3 ao3
+         ai4 ao4)))
 
 ;; *** Sets ***
 
@@ -601,7 +691,8 @@
       (hash-set nil 2) #{nil 2}
       (hash-set #{}) #{#{}}
       (hash-set 1 #{}) #{1 #{}}
-      (hash-set #{} 2) #{#{} 2} ))
+      (hash-set #{} 2) #{#{} 2}
+      (hash-set (Integer. -1)) (hash-set (Long. -1))))
 
 
 (deftest test-sorted-set
@@ -819,6 +910,9 @@
     (are [x y] (= x y)
       EMPTY EMPTY
       (into EMPTY (range 50)) (into EMPTY (range 50))
+      (conj EMPTY (Long. -1)) (conj EMPTY (Integer. -1))
+      (hash (conj EMPTY (Long. -1))) (hash (conj EMPTY (Integer. -1)))
+      (hash [1 2 3]) (hash (conj EMPTY 1 2 3))
       (range 5) (into EMPTY (range 5))
       (range 1 6) (-> EMPTY
                     (into (range 6))
@@ -833,3 +927,85 @@
                     (into (range 7))
                     pop))))
 
+
+(deftest test-duplicates
+  (let [equal-sets-incl-meta (fn [s1 s2]
+                               (and (= s1 s2)
+                                    (let [ss1 (sort s1)
+                                          ss2 (sort s2)]
+                                      (every? identity
+                                              (map #(and (= %1 %2)
+                                                         (= (meta %1) (meta %2)))
+                                                   ss1 ss2)))))
+        all-equal-sets-incl-meta (fn [& ss]
+                                   (every? (fn [[s1 s2]]
+                                             (equal-sets-incl-meta s1 s2))
+                                           (partition 2 1 ss)))
+        equal-maps-incl-meta (fn [m1 m2]
+                               (and (= m1 m2)
+                                    (equal-sets-incl-meta (set (keys m1))
+                                                          (set (keys m2)))
+                                    (every? #(= (meta (m1 %)) (meta (m2 %)))
+                                            (keys m1))))
+        all-equal-maps-incl-meta (fn [& ms]
+                                   (every? (fn [[m1 m2]]
+                                             (equal-maps-incl-meta m1 m2))
+                                           (partition 2 1 ms)))
+        cmp-first #(> (first %1) (first %2))
+        x1 (with-meta [1] {:me "x"})
+        y2 (with-meta [2] {:me "y"})
+        z3a (with-meta [3] {:me "z3a"})
+        z3b (with-meta [3] {:me "z3b"})
+        v4a (with-meta [4] {:me "v4a"})
+        v4b (with-meta [4] {:me "v4b"})
+        v4c (with-meta [4] {:me "v4c"})
+        w5a (with-meta [5] {:me "w5a"})
+        w5b (with-meta [5] {:me "w5b"})
+        w5c (with-meta [5] {:me "w5c"})]
+
+    ;; Sets
+    (is (thrown? IllegalArgumentException
+                 (read-string "#{1 2 3 4 1 5}")))
+    ;; If there are duplicate items when doing (conj #{} x1 x2 ...),
+    ;; the behavior is that the metadata of the first item is kept.
+    (are [s x] (all-equal-sets-incl-meta s
+                                         (apply conj #{} x)
+                                         (set x)
+                                         (apply hash-set x)
+                                         (apply sorted-set x)
+                                         (apply sorted-set-by cmp-first x))
+      #{x1 y2} [x1 y2]
+      #{x1 z3a} [x1 z3a z3b]
+      #{w5b}    [w5b w5a w5c]
+      #{z3a x1} [z3a z3b x1])
+
+    ;; Maps
+    (is (thrown? IllegalArgumentException
+                 (read-string "{:a 1, :b 2, :a -1, :c 3}")))
+    ;; If there are duplicate keys when doing (assoc {} k1 v1 k2 v2
+    ;; ...), the behavior is that the metadata of the first duplicate
+    ;; key is kept, but mapped to the last value with an equal key
+    ;; (where metadata of keys are not compared).
+    (are [h x] (all-equal-maps-incl-meta h
+                                         (apply assoc {} x)
+                                         (apply hash-map x)
+                                         (apply sorted-map x)
+                                         (apply sorted-map-by cmp-first x)
+                                         (apply array-map x))
+      {x1 2, z3a 4} [x1 2, z3a 4]
+      {x1 2, z3a 5} [x1 2, z3a 4, z3b 5]
+      {z3a 5}       [z3a 2, z3a 4, z3b 5]
+      {z3b 4, x1 5} [z3b 2, z3a 4, x1 5]
+      {z3b v4b, x1 5} [z3b v4a, z3a v4b, x1 5]
+      {x1 v4a, w5a v4c, v4a z3b, y2 2} [x1 v4a, w5a v4a, w5b v4b,
+                                        v4a z3a, y2 2, v4b z3b, w5c v4c])))
+
+
+(deftest test-assoc
+  (are [x y] (= x y)
+       [4] (assoc [] 0 4)
+       [5 -7] (assoc [] 0 5 1 -7)
+       {:a 1} (assoc {} :a 1)
+       {:a 2 :b -2} (assoc {} :b -2 :a 2))
+  (is (thrown? IllegalArgumentException (assoc [] 0 5 1)))
+  (is (thrown? IllegalArgumentException (assoc {} :b -2 :a))))

@@ -81,3 +81,21 @@
       (binding [*print-level* level
                 *print-length* length]
         (is (= val (print-str coll)))))))
+
+(deftest print-dup-expected
+  (are [x s] (= s (binding [*print-dup* true] (print-str x)))
+       1 "1"
+       1.0 "1.0"
+       1N "1N"
+       (java.math.BigInteger. "1") "#=(java.math.BigInteger. \"1\")"
+       1M "1M"
+       "hi" "\"hi\""))
+
+(deftest print-dup-readable
+  (are [form] (let [x form]
+                (= x (read-string (binding [*print-dup* true] (print-str x)))))
+       1
+       1.0
+       1N
+       1M
+       "hi"))

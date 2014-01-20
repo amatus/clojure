@@ -18,8 +18,9 @@ import java.util.*;
 public abstract class APersistentVector extends AFn implements IPersistentVector, Iterable,
                                                                List,
                                                                RandomAccess, Comparable,
-                                                               Serializable {
+                                                               Serializable, IHashEq {
 int _hash = -1;
+int _hasheq = -1;
 
 public String toString(){
 	return RT.printString(this);
@@ -152,6 +153,20 @@ public int hashCode(){
 	return _hash;
 }
 
+public int hasheq(){
+	if(_hasheq == -1) {
+	int hash = 1;
+	Iterator i = iterator();
+	while(i.hasNext())
+		{
+		Object obj = i.next();
+		hash = 31 * hash + Util.hasheq(obj);
+		}
+	_hasheq = hash;
+	}
+	return _hasheq;
+}
+
 public Object get(int index){
 	return nth(index);
 }
@@ -221,6 +236,24 @@ public ListIterator listIterator(final int index){
 		}
 
 		public void add(Object o){
+			throw new UnsupportedOperationException();
+		}
+	};
+}
+
+Iterator rangedIterator(final int start, final int end){
+	return new Iterator(){
+		int i = start;
+
+		public boolean hasNext(){
+			return i < end;
+		}
+
+		public Object next(){
+			return nth(i++);
+		}
+
+		public void remove(){
 			throw new UnsupportedOperationException();
 		}
 	};
@@ -355,19 +388,7 @@ public boolean containsAll(Collection c){
 }
 
 public Object[] toArray(Object[] a){
-	if(a.length >= count())
-		{
-		ISeq s = seq();
-		for(int i = 0; s != null; ++i, s = s.next())
-			{
-			a[i] = s.first();
-			}
-		if(a.length > count())
-			a[count()] = null;
-		return a;
-		}
-	else
-		return toArray();
+    return RT.seqToPassedArray(seq(), a);
 }
 
 public int size(){
@@ -499,9 +520,9 @@ public static class RSeq extends ASeq implements IndexedSeq, Counted{
 }
 
 static class SubVector extends APersistentVector implements IObj{
-	final IPersistentVector v;
-	final int start;
-	final int end;
+	public final IPersistentVector v;
+	public final int start;
+	public final int end;
 	final IPersistentMap _meta;
 
 
@@ -521,8 +542,15 @@ static class SubVector extends APersistentVector implements IObj{
 		this.end = end;
 	}
 
+	public Iterator iterator(){
+		if (v instanceof APersistentVector) {
+			return ((APersistentVector)v).rangedIterator(start,end);
+		}
+		return super.iterator();
+	}
+
 	public Object nth(int i){
-		if(start + i >= end)
+		if((start + i >= end) || (i < 0))
 			throw new IndexOutOfBoundsException();
 		return v.nth(start + i);
 	}

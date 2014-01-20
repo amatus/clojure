@@ -205,11 +205,87 @@
   (cl-format nil "~,1f" 0.99) "1.0"
   (cl-format nil "~,2f" 0.99) "0.99"
   (cl-format nil "~,3f" 0.99) "0.990"
+  (cl-format nil "~,3f" -0.099) "-0.099"
+  (cl-format nil "~,4f" -0.099) "-0.0990"
+  (cl-format nil "~,5f" -0.099) "-0.09900"
+  (cl-format nil "~,3f" 0.099) "0.099"
+  (cl-format nil "~,4f" 0.099) "0.0990"
+  (cl-format nil "~,5f" 0.099) "0.09900"
   (cl-format nil "~f" -1) "-1.0"
   (cl-format nil "~2f" -1) "-1."
   (cl-format nil "~3f" -1) "-1."
   (cl-format nil "~4f" -1) "-1.0"
   (cl-format nil "~8f" -1) "    -1.0"
+  (cl-format nil "~2f" -0.0099) "-0."
+  (cl-format nil "~3f" -0.0099) "-0."
+  (cl-format nil "~4f" -0.0099) "-.01"
+  (cl-format nil "~5f" -0.0099) "-0.01"
+  (cl-format nil "~6f" -0.0099) "-.0099"
+  (cl-format nil "~1f" 0.0099) "0."
+  (cl-format nil "~2f" 0.0099) "0."
+  (cl-format nil "~3f" 0.0099) ".01"
+  (cl-format nil "~4f" 0.0099) "0.01"
+  (cl-format nil "~5f" 0.0099) ".0099"
+  (cl-format nil "~6f" 0.0099) "0.0099"
+  (cl-format nil "~1f" -0.099) "-.1"
+  (cl-format nil "~2f" -0.099) "-.1"
+  (cl-format nil "~3f" -0.099) "-.1"
+  (cl-format nil "~4f" -0.099) "-0.1"
+  (cl-format nil "~5f" -0.099) "-.099"
+  (cl-format nil "~6f" -0.099) "-0.099"
+  (cl-format nil "~1f" 0.099) ".1"
+  (cl-format nil "~2f" 0.099) ".1"
+  (cl-format nil "~3f" 0.099) "0.1"
+  (cl-format nil "~4f" 0.099) ".099"
+  (cl-format nil "~5f" 0.099) "0.099"
+  (cl-format nil "~1f" -0.99) "-1."
+  (cl-format nil "~2f" -0.99) "-1."
+  (cl-format nil "~3f" -0.99) "-1."
+  (cl-format nil "~4f" -0.99) "-.99"
+  (cl-format nil "~5f" -0.99) "-0.99"
+  (cl-format nil "~1f" 0.99) "1."
+  (cl-format nil "~2f" 0.99) "1."
+  (cl-format nil "~3f" 0.99) ".99"
+  (cl-format nil "~4f" 0.99) "0.99"
+  (cl-format nil "~1f" 111.11111) "111."
+  (cl-format nil "~4f" 111.11111) "111."
+  (cl-format nil "~5f" 111.11111) "111.1"
+  (cl-format nil "~1f" -111.11111) "-111."
+  (cl-format nil "~5f" -111.11111) "-111."
+  (cl-format nil "~6f" -111.11111) "-111.1"
+  (cl-format nil "~1f" 555.55555) "556."
+  (cl-format nil "~4f" 555.55555) "556."
+  (cl-format nil "~5f" 555.55555) "555.6"
+  (cl-format nil "~8f" 555.55555) "555.5556"
+  (cl-format nil "~1f" -555.55555) "-556."
+  (cl-format nil "~5f" -555.55555) "-556."
+  (cl-format nil "~6f" -555.55555) "-555.6"
+  (cl-format nil "~8f" -555.55555) "-555.556"
+  (cl-format nil "~1f" 999.999) "1000."
+  (cl-format nil "~5f" 999.999) "1000."
+  (cl-format nil "~6f" 999.999) "1000.0"
+  (cl-format nil "~7f" 999.999) "999.999"
+  (cl-format nil "~8f" 999.999) " 999.999"
+  (cl-format nil "~1f" -999.999) "-1000."
+  (cl-format nil "~6f" -999.999) "-1000."
+  (cl-format nil "~7f" -999.999) "-1000.0"
+  (cl-format nil "~8f" -999.999) "-999.999"
+  (cl-format nil "~5,2f" 111.11111) "111.11"
+  (cl-format nil "~3,1f" -0.0099) "-.0"
+  (cl-format nil "~6,4f" -0.0099) "-.0099"
+  (cl-format nil "~6,5f" -0.0099) "-.00990"
+  (cl-format nil "~6,6f" -0.0099) "-.009900"
+  (cl-format nil "~6,4f" 0.0099) "0.0099"
+  (cl-format nil "~6,5f" 0.0099) ".00990"
+  (cl-format nil "~6,6f" 0.0099) ".009900"
+  (cl-format nil "~2,1f" 0.0099) ".0"
+  (cl-format nil "~6,2f" -111.11111) "-111.11"
+  (cl-format nil "~6,3f" -111.11111) "-111.111"
+  (cl-format nil "~8,5f" -111.11111) "-111.11111"
+  (cl-format nil "~12,10f" 1.23456789014) "1.2345678901"
+  (cl-format nil "~12,10f" 1.23456789016) "1.2345678902"
+  (cl-format nil "~13,10f" -1.23456789014) "-1.2345678901"
+  (cl-format nil "~13,10f" -1.23456789016) "-1.2345678902"
   (cl-format nil "~1,1f" 0.1) ".1")
 
 (simple-tests ampersand-tests
@@ -513,8 +589,28 @@
   (format nil "~6,2F|~6,2,1,'*F|~6,2,,'?F|~6F|~,2F|~F" 
           x x x x x x))
 
+;; big-pos-ratio is a ratio value that is larger than
+;; Double/MAX_VALUE, and has a non-terminating decimal representation
+;; if you attempt to represent it exactly.
+(def big-pos-ratio (/ (* 4 (bigint (. BigDecimal valueOf Double/MAX_VALUE))) 3))
+(def big-neg-ratio (- big-pos-ratio))
+;; tiny-pos-ratio is a ratio between 0 and Double/MIN_VALUE.
+(def tiny-pos-ratio (/ 1 (bigint (apply str (cons "1" (repeat 340 "0"))))))
+(def tiny-neg-ratio (- tiny-pos-ratio))
+
 (simple-tests cltl-F-tests
+  (cl-format false "~10,3f" 4/5) "     0.800"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3f" big-pos-ratio)) "239692417981642093333333333333333300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.000"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3f" big-neg-ratio)) "-239692417981642093333333333333333300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.000"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3f" tiny-pos-ratio)) "     0.000"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3f" tiny-neg-ratio)) "    -0.000"
   (foo 3.14159)  "  3.14| 31.42|  3.14|3.1416|3.14|3.14159" 
+  (foo 314159/100000)
+                 "  3.14| 31.42|  3.14|3.1416|3.14|3.14159"
   (foo -3.14159) " -3.14|-31.42| -3.14|-3.142|-3.14|-3.14159" 
   (foo 100.0)    "100.00|******|100.00| 100.0|100.00|100.0" 
   (foo 1234.0)   "1234.00|******|??????|1234.0|1234.00|1234.0" 
@@ -527,7 +623,18 @@
 
 ;; Clojure doesn't support float/double differences in representation
 (simple-tests cltl-E-tests
+  (cl-format false "~10,3e" 4/5) "  8.000E-1"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3e" big-pos-ratio)) "2.397E+308"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3e" big-neg-ratio)) "-2.397E+308"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3e" tiny-pos-ratio)) "1.000E-340"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3e" tiny-neg-ratio)) "-1.000E-340"
   (foo-e 0.0314159) "  3.14E-2| 31.42$-03|+.003E+01|  3.14E-2"  ; Added this one 
+  (foo-e 314159/10000000)
+                    "  3.14E-2| 31.42$-03|+.003E+01|  3.14E-2"
   (foo-e 3.14159)  "  3.14E+0| 31.42$-01|+.003E+03|  3.14E+0" 
   (foo-e -3.14159) " -3.14E+0|-31.42$-01|-.003E+03| -3.14E+0"
   (foo-e 1100.0)   "  1.10E+3| 11.00$+02|+.001E+06|  1.10E+3" 
@@ -565,7 +672,18 @@
 
 ;; Clojure doesn't support float/double differences in representation
 (simple-tests cltl-G-tests
+  (cl-format false "~10,3g" 4/5)  " 0.800    "
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3g" big-pos-ratio)) "2.397E+308"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3g" big-neg-ratio)) "-2.397E+308"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3g" tiny-pos-ratio)) "1.000E-340"
+  (binding [*math-context* java.math.MathContext/DECIMAL128]
+    (cl-format false "~10,3g" tiny-neg-ratio)) "-1.000E-340"
   (foo-g 0.0314159) "  3.14E-2|314.2$-04|0.314E-01|  3.14E-2" 
+  (foo-g 314159/10000000)
+                    "  3.14E-2|314.2$-04|0.314E-01|  3.14E-2"
   (foo-g 0.314159)  "  0.31   |0.314    |0.314    | 0.31    " 
   (foo-g 3.14159)   "   3.1   | 3.14    | 3.14    |  3.1    " 
   (foo-g 31.4159)   "   31.   | 31.4    | 31.4    |  31.    " 
@@ -683,3 +801,25 @@ but it was called with an argument of type short-float.\n")
           '((hot dog) (hamburger) (ice cream) (french fries))) 
   "/hot .../hamburger")
 
+(simple-tests pprint-table-tests
+  (with-out-str
+    (print-table [:b :a]
+                 [{:a 1 :b {:a 'is-a} :c ["hi" "there"]}
+                  {:b 5 :a 7 :c "dog" :d -700}]))
+  "
+|        :b | :a |
+|-----------+----|
+| {:a is-a} |  1 |
+|         5 |  7 |
+"
+  (with-out-str
+    (print-table [:a :e :d :c]
+                 [{:a 54.7e17 :b {:a 'is-a} :c ["hi" "there"]}
+                  {:b 5 :a -2/3 :c "dog" :d 'panda}]))
+  "
+|      :a | :e |    :d |             :c |
+|---------+----+-------+----------------|
+| 5.47E18 |    |       | [\"hi\" \"there\"] |
+|    -2/3 |    | panda |            dog |
+"
+  )
